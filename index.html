@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AXIOM">
+<meta name="theme-color" content="#1a56db">
+<title>AXIOM v2 — AI Market Analyst</title>
+<script>
+(function(){
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><rect width="180" height="180" rx="38" fill="#1a56db"/><text x="90" y="76" font-family="Georgia,serif" font-size="54" font-weight="900" fill="white" text-anchor="middle">AX</text><text x="90" y="118" font-family="Georgia,serif" font-size="27" font-weight="700" fill="rgba(255,255,255,0.8)" text-anchor="middle">IOM</text><rect x="28" y="130" width="124" height="2" rx="1" fill="rgba(255,255,255,0.3)"/><text x="90" y="154" font-family="Georgia,serif" font-size="12" fill="rgba(255,255,255,0.6)" text-anchor="middle">MARKET INTEL</text></svg>`;
+  const l=document.createElement('link');
+  l.rel='apple-touch-icon';
+  l.href='data:image/svg+xml;base64,'+btoa(svg);
+  document.head.appendChild(l);
+})();
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap');
+
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface2: #e8ebf0;
+  --border: #c0c5d0;
+  --accent: #1a56db;
+  --accent3: #5521b5;
+  --text: #000000;
+  --muted: #111111;
+  --green: #0a5c2a;
+  --red: #b91c1c;
+  --yellow: #78350f;
+  --orange: #9a3412;
+  --blue: #0c4a6e;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* no decorative grid on light theme */
+body::before { display: none; }
+
+.layout { position:relative; z-index:1; max-width:1320px; margin:0 auto; padding:20px; }
+
+/* HEADER */
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 0 22px; border-bottom:1px solid var(--border); margin-bottom:20px;
+}
+.logo {
+  font-family:'Syne',sans-serif; font-weight:800; font-size:1.7rem;
+  letter-spacing:-.02em; color:var(--accent);
+}
+.logo span { color:#000000; opacity:1; font-weight:400; }
+.logo sup { font-size:.55rem; vertical-align:super; color:var(--accent3); opacity:.9; margin-left:2px; }
+.status-bar { display:flex; align-items:center; gap:16px; font-size:.68rem; color:var(--text); }
+.pulse-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 8px rgba(0,112,243,.4);
+  animation:pulse 1.5s ease-in-out infinite;
+}
+.pulse-dot.idle  { background:var(--muted); box-shadow:none; animation:none; }
+.pulse-dot.error { background:var(--red);   box-shadow:0 0 8px rgba(220,38,38,.4); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+/* CONTROLS */
+.controls { display:flex; gap:10px; align-items:flex-end; margin-bottom:14px; flex-wrap:wrap; }
+.input-group { display:flex; flex-direction:column; gap:4px; }
+.input-group label { font-size:.62rem; color:var(--text); font-weight:700; text-transform:uppercase; letter-spacing:.1em; }
+input[type="text"], select {
+  background:var(--surface); border:1px solid var(--border); color:var(--text);
+  padding:8px 12px; font-family:'Space Mono',monospace; font-size:.78rem;
+  border-radius:4px; outline:none; transition:border-color .2s; min-width:110px;
+}
+input[type="text"]:focus, select:focus { border-color:var(--accent); }
+select option { background: var(--surface); color: var(--text); }
+.btn {
+  font-family:'Syne',sans-serif; font-weight:700; font-size:.78rem;
+  padding:9px 20px; border:none; border-radius:4px; cursor:pointer;
+  letter-spacing:.05em; text-transform:uppercase; transition:all .2s; align-self:flex-end;
+}
+.btn-primary { background:var(--accent); color:#000; }
+.btn-primary:hover { filter:brightness(1.15); transform:translateY(-1px); }
+.btn-stop { background:transparent; color:var(--red); border:1px solid var(--red); }
+.btn-stop:hover { background:rgba(255,75,110,.1); }
+
+/* FILTERS */
+.filters-panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:16px; overflow:hidden; }
+.filters-toggle { padding:11px 16px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; transition:background .15s; }
+.filters-toggle:hover { background:var(--surface2); }
+.ftl { display:flex; align-items:center; gap:10px; font-size:.68rem; text-transform:uppercase; letter-spacing:.12em; color:var(--text); font-weight:700; }
+.filter-active-count { background:var(--accent); color:#000; font-size:.58rem; font-weight:700; padding:1px 6px; border-radius:10px; display:none; }
+.filter-active-count.visible { display:inline-block; }
+.filters-chevron { font-size:.68rem; color:var(--muted); transition:transform .2s; }
+.filters-chevron.open { transform:rotate(180deg); }
+.filters-body { border-top:1px solid var(--border); padding:14px 16px; display:none; }
+.filters-body.open { display:block; }
+.filter-row { display:flex; gap:20px; flex-wrap:wrap; }
+.filter-section { flex:1; min-width:200px; margin-bottom:10px; }
+.filter-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text); font-weight:700; margin-bottom:7px; }
+.sector-chips, .sf-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.sector-chip, .sf-chip {
+  font-family:'Space Mono',monospace; font-size:.62rem; padding:3px 9px;
+  border-radius:3px; border:1px solid var(--border); background:var(--surface);
+  color:var(--text); cursor:pointer; transition:all .15s; user-select:none; font-weight:600;
+}
+.sector-chip:hover { border-color:var(--accent3); color:var(--text); }
+.sector-chip.active { border-color:var(--accent3); background:#ede9fe; color:var(--accent3); }
+.sf-chip:hover { border-color:var(--text); color:var(--text); }
+.sf-chip.active-bullish { border-color:var(--green);   background:#dcfce7; color:var(--green); }
+.sf-chip.active-bearish { border-color:var(--red);     background:#fee2e2; color:var(--red); }
+.sf-chip.active-neutral { border-color:var(--yellow);  background:#fef3c7; color:var(--yellow); }
+.sf-chip.active-mixed   { border-color:var(--accent3); background:#ede9fe; color:var(--accent3); }
+.price-range-row { display:flex; align-items:center; gap:8px; }
+.price-range-row input[type="number"] {
+  background:var(--surface2); border:1px solid var(--border); color:var(--text);
+  padding:5px 9px; font-family:'Space Mono',monospace; font-size:.72rem;
+  border-radius:4px; outline:none; width:100px; -moz-appearance:textfield;
+}
+.price-range-row input::-webkit-outer-spin-button,
+.price-range-row input::-webkit-inner-spin-button { -webkit-appearance:none; }
+.price-range-row input:focus { border-color:var(--accent); }
+.price-sep { color:var(--muted); font-size:.68rem; }
+.price-clear { font-size:.62rem; color:var(--muted); cursor:pointer; padding:3px 7px; border:1px solid transparent; border-radius:3px; transition:all .15s; background:none; font-family:'Space Mono',monospace; }
+.price-clear:hover { color:var(--red); border-color:var(--red); }
+
+/* Subreddit tags */
+.sub-tags { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:6px; }
+.sub-tag { font-size:.62rem; padding:3px 8px; border-radius:3px; border:1px solid #c2410c; background:#ffedd5; color:#9a3412; display:flex; align-items:center; gap:5px; font-weight:600; }
+.remove-sub { opacity:.5; cursor:pointer; font-size:.75rem; line-height:1; }
+.remove-sub:hover { opacity:1; color:var(--red); }
+.sub-add-row { display:flex; gap:6px; }
+.sub-add-row input { flex:1; min-width:0; }
+.sub-add-btn { font-family:'Space Mono',monospace; font-size:.65rem; padding:5px 10px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); border-radius:3px; cursor:pointer; transition:all .15s; }
+.sub-add-btn:hover { border-color:var(--orange); color:var(--orange); }
+
+/* MAIN GRID */
+.grid { display:grid; grid-template-columns:1fr 360px; gap:16px; }
+
+/* PANEL */
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.panel-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; font-size:.68rem; text-transform:uppercase; letter-spacing:.12em; color:var(--text); font-weight:700; }
+.panel-header .tag { background:var(--surface2); border:1px solid var(--border); padding:2px 7px; border-radius:2px; font-size:.58rem; }
+
+/* Active filter chips */
+.active-filters-row { display:flex; flex-wrap:wrap; gap:5px; padding:7px 14px; border-bottom:1px solid var(--border); background:rgba(123,97,255,.03); }
+.active-filters-row:empty { display:none; }
+.afc { font-size:.58rem; padding:2px 7px; border-radius:2px; background:#ede9fe; border:1px solid #c4b5fd; color:var(--accent3); display:flex; align-items:center; gap:4px; font-weight:600; }
+.afc-remove { cursor:pointer; opacity:.6; font-size:.7rem; }
+.afc-remove:hover { opacity:1; color:var(--red); }
+
+/* FEED */
+#feed { height:460px; overflow-y:auto; scroll-behavior:smooth; }
+#feed::-webkit-scrollbar { width:3px; }
+#feed::-webkit-scrollbar-thumb { background:var(--border); }
+.cycle { border-bottom:1px solid var(--border); animation:slideIn .35s ease; }
+@keyframes slideIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+.cycle.filtered-out { opacity:.2; filter:grayscale(1); pointer-events:none; }
+.cycle-header { padding:10px 16px; display:flex; align-items:center; gap:8px; background:var(--surface2); font-size:.63rem; color:var(--text); cursor:pointer; user-select:none; transition:background .15s; flex-wrap:wrap; }
+.cycle-header:hover { background:#d8dbe6; }
+.cycle-num   { font-family:'Syne',sans-serif; font-weight:800; font-size:.72rem; color:var(--accent3); min-width:26px; }
+.cycle-topic { font-family:'Syne',sans-serif; font-size:.76rem; color:var(--text); flex:1; min-width:120px; font-weight:700; }
+.cycle-time  { color:var(--muted); font-weight:600; }
+.sentiment-badge { padding:2px 7px; border-radius:2px; font-size:.58rem; font-weight:700; text-transform:uppercase; }
+.sentiment-bullish { background:#dcfce7; color:var(--green); border:1px solid #bbf7d0; }
+.sentiment-bearish { background:#fee2e2; color:var(--red);   border:1px solid #fecaca; }
+.sentiment-neutral { background:#fef3c7; color:var(--yellow);border:1px solid #fde68a; }
+.sentiment-mixed   { background:#ede9fe; color:var(--accent3);border:1px solid #ddd6fe; }
+.src-badges { display:flex; gap:3px; }
+.src-badge  { font-size:.53rem; padding:1px 5px; border-radius:2px; font-weight:700; }
+.src-reddit  { background:#fff7ed; color:var(--orange); border:1px solid #fed7aa; }
+.src-insider { background:#e0f2fe; color:var(--blue);   border:1px solid #bae6fd; }
+.src-congress{ background:#dcfce7; color:var(--green);  border:1px solid #bbf7d0; }
+
+.cycle-body { padding:14px 16px; font-size:.74rem; line-height:1.88; color:var(--text); white-space:pre-wrap; }
+.typing-cursor { display:inline-block; width:2px; height:13px; background:var(--accent); margin-left:2px; vertical-align:text-bottom; animation:blink .8s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Signal cards */
+.signal-row { display:flex; gap:7px; flex-wrap:wrap; padding:10px 14px; background:var(--surface2); border-top:1px solid var(--border); }
+.signal-card { flex:1; min-width:130px; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:9px 11px; }
+.sc-label { font-size:.57rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text); font-weight:700; margin-bottom:4px; }
+.sc-val   { font-family:'Syne',sans-serif; font-size:.85rem; font-weight:800; line-height:1; margin-bottom:3px; }
+.sc-sub   { font-size:.59rem; color:var(--muted); line-height:1.5; margin-top:2px; font-weight:600; }
+.sc-up   { color:var(--green); }
+.sc-down { color:var(--red); }
+.sc-flat { color:var(--yellow); }
+.sc-mixed{ color:var(--accent3); }
+
+.inline-metrics { display:flex; gap:6px; flex-wrap:wrap; padding:8px 14px; background:var(--surface2); border-top:1px solid var(--border); }
+.metric-chip { font-size:.61rem; padding:3px 9px; border-radius:20px; border:1px solid var(--border); color:var(--text); font-weight:600; background:var(--surface); }
+
+/* SIDEBAR */
+.sidebar { display:flex; flex-direction:column; gap:13px; }
+.progress-panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:13px 15px; }
+.progress-title { font-size:.62rem; text-transform:uppercase; letter-spacing:.12em; color:var(--text); font-weight:700; margin-bottom:11px; }
+.step { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:.69rem; opacity:.28; transition:all .3s; }
+.step.active { opacity:1; }
+.step.done   { opacity:.5; }
+.step-icon { width:25px; height:25px; border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:.7rem; flex-shrink:0; transition:all .3s; }
+.step.active .step-icon { border-color:var(--accent); color:var(--accent); box-shadow:0 0 8px rgba(0,112,243,.25); animation:pulse 1s ease-in-out infinite; }
+.step.done   .step-icon { border-color:var(--accent); background:#dbeafe; color:var(--accent); }
+.step-label { color:var(--text); font-weight:600; }
+.step-sub   { font-size:.57rem; color:var(--muted); font-weight:600; }
+
+.countdown-wrap { padding:11px 15px; background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+.countdown-label { display:flex; justify-content:space-between; font-size:.62rem; color:var(--text); font-weight:700; margin-bottom:7px; text-transform:uppercase; letter-spacing:.1em; }
+.bar-track { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+.bar-fill  { height:100%; background:linear-gradient(90deg, var(--accent3), var(--accent)); border-radius:2px; transition:width 1s linear; }
+
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:11px; }
+.stat-card  { background:var(--surface2); border:1px solid var(--border); border-radius:5px; padding:10px; }
+.stat-val   { font-family:'Syne',sans-serif; font-weight:800; font-size:1.25rem; color:var(--accent); line-height:1; margin-bottom:3px; }
+.stat-label { font-size:.57rem; color:var(--text); font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+
+.topics-list { display:flex; flex-direction:column; gap:5px; padding:11px 13px; max-height:148px; overflow-y:auto; }
+.topic-item  { font-size:.67rem; padding:5px 9px; border-radius:4px; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; gap:7px; cursor:pointer; transition:all .15s; }
+.topic-item:hover { border-color:var(--accent); color:var(--accent); }
+.topic-item .dot { width:5px; height:5px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+
+/* SENTIMENT CHART */
+.chart-panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:16px; }
+.chart-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; font-size:.68rem; text-transform:uppercase; letter-spacing:.12em; color:var(--text); font-weight:700; flex-wrap:wrap; gap:8px; }
+.chart-legend { display:flex; gap:14px; flex-wrap:wrap; }
+.legend-item  { display:flex; align-items:center; gap:5px; font-size:.6rem; color:var(--text); font-weight:600; }
+.legend-dot   { width:8px; height:8px; border-radius:50%; }
+#sentimentChart { width:100%; height:155px; display:block; }
+.chart-empty    { height:155px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:.7rem; font-weight:600; }
+
+/* EMPTY / ERROR */
+.empty-state { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--text); font-size:.72rem; font-weight:600; }
+.empty-icon  { font-size:2.2rem; opacity:.3; }
+.error-msg   { background:#fee2e2; border:1px solid #fecaca; border-radius:4px; padding:9px 13px; font-size:.7rem; color:var(--red); margin:10px 14px; font-weight:600; }
+
+footer { margin-top:20px; padding-top:14px; border-top:1px solid var(--border); font-size:.6rem; color:var(--text); font-weight:600; display:flex; justify-content:space-between; }
+
+@media(max-width:900px) {
+  .grid { grid-template-columns:1fr; }
+  .sidebar { flex-direction:row; flex-wrap:wrap; }
+  .progress-panel, .countdown-wrap { flex:1 1 200px; }
+}
+
+/* ── iPhone / mobile ── */
+@media(max-width:520px) {
+  .layout { padding: 12px 12px env(safe-area-inset-bottom, 12px); }
+
+  header { padding: 14px 0 16px; }
+  .logo  { font-size: 1.3rem; }
+  .logo sup { display:none; }
+  .status-bar { font-size:.65rem; gap:10px; }
+
+  /* stack controls vertically */
+  .controls { flex-direction:column; align-items:stretch; gap:8px; }
+  .controls .input-group { width:100%; }
+  .controls input[type="text"],
+  .controls select { width:100%; min-width:0; font-size:.85rem; padding:10px 12px; }
+  .btn { width:100%; padding:12px; font-size:.85rem; }
+
+  /* filters */
+  .filter-row { flex-direction:column; gap:12px; }
+  .filter-section { min-width:0; width:100%; }
+
+  /* chart */
+  .chart-header { flex-direction:column; align-items:flex-start; gap:6px; }
+  .chart-legend { gap:8px; }
+  .legend-item  { font-size:.58rem; }
+  #sentimentChart { height:130px; }
+
+  /* feed */
+  #feed { height:auto; max-height:60vh; }
+  .cycle-header { padding:10px 12px; gap:6px; }
+  .cycle-num    { font-size:.68rem; }
+  .cycle-topic  { font-size:.72rem; }
+  .src-badges   { display:none; } /* too cramped on small screen */
+  .cycle-body   { padding:12px; font-size:.78rem; line-height:1.75; }
+
+  /* signal cards stack vertically */
+  .signal-row   { flex-direction:column; padding:8px 10px; gap:8px; }
+  .signal-card  { min-width:0; width:100%; }
+  .sc-val       { font-size:.9rem; }
+
+  /* sidebar */
+  .sidebar { flex-direction:column; }
+  .stats-grid { grid-template-columns:1fr 1fr 1fr 1fr; }
+  .stat-val   { font-size:1rem; }
+
+  /* topics list */
+  .topics-list  { max-height:120px; }
+  .topic-item   { font-size:.7rem; }
+
+  /* footer */
+  footer { flex-direction:column; gap:4px; font-size:.58rem; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<header>
+  <div class="logo">AXIOM <sup>v2</sup> <span>// MARKET INTELLIGENCE</span></div>
+  <div class="status-bar">
+    <div class="pulse-dot idle" id="statusDot"></div>
+    <span id="statusText">IDLE</span>
+    <span>|</span>
+    <span id="clockDisplay">--:--:--</span>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="input-group">
+    <label>Focus Topic / Asset</label>
+    <input type="text" id="topicInput" placeholder="e.g. NVDA, Bitcoin, S&P 500…" value="S&P 500 and tech stocks">
+  </div>
+  <div class="input-group">
+    <label>Analysis Depth</label>
+    <select id="depthSelect">
+      <option value="brief">Brief</option>
+      <option value="detailed" selected>Detailed</option>
+      <option value="deep-dive">Deep Dive</option>
+    </select>
+  </div>
+  <div class="input-group">
+    <label>Cycle Interval</label>
+    <select id="intervalSelect">
+      <option value="20">20s</option>
+      <option value="40" selected>40s</option>
+      <option value="60">60s</option>
+      <option value="120">2 min</option>
+    </select>
+  </div>
+  <button class="btn btn-primary" id="startBtn" onclick="startAgent()">▶ Start Agent</button>
+  <button class="btn btn-stop"    id="stopBtn"  onclick="stopAgent()"  style="display:none">■ Stop</button>
+</div>
+
+<!-- FILTERS -->
+<div class="filters-panel">
+  <div class="filters-toggle" onclick="toggleFilters()">
+    <div class="ftl">
+      <span>⊟</span><span>Filters &amp; Sources</span>
+      <span class="filter-active-count" id="filterCount">0</span>
+    </div>
+    <span class="filters-chevron" id="filtersChevron">▼</span>
+  </div>
+  <div class="filters-body" id="filtersBody">
+    <div class="filter-row">
+
+      <div class="filter-section">
+        <div class="filter-label">Sector Focus</div>
+        <div class="sector-chips" id="sectorChips">
+          <div class="sector-chip" data-sector="Technology">Technology</div>
+          <div class="sector-chip" data-sector="Financials">Financials</div>
+          <div class="sector-chip" data-sector="Energy">Energy</div>
+          <div class="sector-chip" data-sector="Healthcare">Healthcare</div>
+          <div class="sector-chip" data-sector="Consumer Discretionary">Consumer</div>
+          <div class="sector-chip" data-sector="Industrials">Industrials</div>
+          <div class="sector-chip" data-sector="Materials">Materials</div>
+          <div class="sector-chip" data-sector="Real Estate">Real Estate</div>
+          <div class="sector-chip" data-sector="Crypto">Crypto</div>
+          <div class="sector-chip" data-sector="Commodities">Commodities</div>
+          <div class="sector-chip" data-sector="Forex">Forex</div>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-label">Price Range (USD)</div>
+        <div class="price-range-row">
+          <span class="price-sep">$</span>
+          <input type="number" id="priceMin" placeholder="Min" min="0">
+          <span class="price-sep">–</span>
+          <span class="price-sep">$</span>
+          <input type="number" id="priceMax" placeholder="Max" min="0">
+          <button class="price-clear" onclick="clearPriceFilter()">✕</button>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-label">Show Sentiments</div>
+        <div class="sf-chips" id="sfChips">
+          <div class="sf-chip" data-sf="BULLISH" onclick="toggleSfChip(this)">Bullish</div>
+          <div class="sf-chip" data-sf="BEARISH" onclick="toggleSfChip(this)">Bearish</div>
+          <div class="sf-chip" data-sf="NEUTRAL" onclick="toggleSfChip(this)">Neutral</div>
+          <div class="sf-chip" data-sf="MIXED"   onclick="toggleSfChip(this)">Mixed</div>
+        </div>
+      </div>
+
+      <div class="filter-section" style="min-width:240px">
+        <div class="filter-label">Subreddits to Monitor</div>
+        <div class="sub-tags" id="subTags"></div>
+        <div class="sub-add-row">
+          <input type="text" id="subInput" placeholder="r/wallstreetbets" style="min-width:0">
+          <button class="sub-add-btn" onclick="addSubreddit()">+ Add</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- SENTIMENT TIMELINE -->
+<div class="chart-panel">
+  <div class="chart-header">
+    <span>Sentiment Timeline</span>
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div><span>Short-term — Reddit &amp; News</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0284c7"></div><span>Medium-term — Insiders</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ea580c"></div><span>Long-term — Congress</span></div>
+    </div>
+  </div>
+  <div id="chartWrap">
+    <div class="chart-empty" id="chartEmpty">Run the agent to populate the sentiment timeline</div>
+    <svg id="sentimentChart" style="display:none" viewBox="0 0 900 155" preserveAspectRatio="none"></svg>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="grid">
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <span>Intelligence Feed</span>
+        <div style="display:flex;gap:7px;align-items:center">
+          <span id="cycleCount" class="tag">0 cycles</span>
+          <span class="tag" id="latencyTag">—</span>
+        </div>
+      </div>
+      <div id="activeFiltersRow" class="active-filters-row"></div>
+      <div id="feed">
+        <div class="empty-state">
+          <div class="empty-icon">◎</div>
+          <div>Configure a topic and start the agent</div>
+          <div style="font-size:.62rem;opacity:.45;margin-top:4px">Reddit · Open Insider · Congressional Trades · News</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+
+    <div class="progress-panel">
+      <div class="progress-title">Agent Pipeline</div>
+      <div class="step" id="step-news">
+        <div class="step-icon">⌕</div>
+        <div><div class="step-label">News &amp; Prices</div><div class="step-sub">Breaking signals</div></div>
+      </div>
+      <div class="step" id="step-reddit">
+        <div class="step-icon">◉</div>
+        <div><div class="step-label">Reddit Scan</div><div class="step-sub">Community sentiment</div></div>
+      </div>
+      <div class="step" id="step-insider">
+        <div class="step-icon">◈</div>
+        <div><div class="step-label">Open Insider</div><div class="step-sub">Executive filings</div></div>
+      </div>
+      <div class="step" id="step-congress">
+        <div class="step-icon">⬡</div>
+        <div><div class="step-label">Congressional Trades</div><div class="step-sub">STOCK Act disclosures</div></div>
+      </div>
+      <div class="step" id="step-output">
+        <div class="step-icon">↗</div>
+        <div><div class="step-label">Synthesis &amp; Output</div><div class="step-sub">Multi-timeframe report</div></div>
+      </div>
+    </div>
+
+    <div class="countdown-wrap">
+      <div class="countdown-label">
+        <span>Next Cycle</span>
+        <span id="countdownSecs">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="countdownBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="panel" style="padding:0">
+      <div class="panel-header"><span>Session Stats</span></div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-val" id="statCycles">0</div><div class="stat-label">Cycles</div></div>
+        <div class="stat-card"><div class="stat-val" id="statBullish" style="color:var(--green)">0</div><div class="stat-label">Bullish</div></div>
+        <div class="stat-card"><div class="stat-val" id="statBearish" style="color:var(--red)">0</div><div class="stat-label">Bearish</div></div>
+        <div class="stat-card"><div class="stat-val" id="statAvgTime">—</div><div class="stat-label">Avg ms</div></div>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:0">
+      <div class="panel-header"><span>Quick Topics</span><span class="tag">click to set</span></div>
+      <div class="topics-list">
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>NVDA — AI chip sector</div>
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>S&amp;P 500 and tech stocks</div>
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>Bitcoin &amp; crypto market</div>
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>Gold and commodities</div>
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>Oil and energy sector</div>
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>Federal Reserve &amp; rates</div>
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>TSLA — EV &amp; auto sector</div>
+        <div class="topic-item" onclick="setTopic(this)"><div class="dot"></div>Emerging market ETFs</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <span>AXIOM v2 — Reddit · Open Insider · Congressional Trades · Live News · Claude AI</span>
+  <span id="footerInfo">Not running</span>
+</footer>
+
+</div>
+
+<script>
+/* ── STATE ── */
+let running = false, cycleTimer = null, countdownTimer = null;
+let cycleNum = 0;
+let stats = { bullish:0, bearish:0, totalMs:0, count:0 };
+let countdownTotal = 40, countdownLeft = 0;
+let analysisHistory = [], cycleSentimentMap = {}, chartData = [];
+let activeSectors = new Set(), sentimentFilters = new Set();
+let activeSubreddits = new Set(['wallstreetbets','stocks','investing','StockMarket']);
+
+/* ── INIT subreddit tags ── */
+window.addEventListener('DOMContentLoaded', () => {
+  renderSubTags();
+});
+
+setInterval(() => {
+  document.getElementById('clockDisplay').textContent = new Date().toTimeString().slice(0,8);
+}, 1000);
+
+/* ── SUBREDDITS ── */
+function renderSubTags() {
+  const wrap = document.getElementById('subTags');
+  wrap.innerHTML = '';
+  activeSubreddits.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'sub-tag';
+    d.innerHTML = `<span>r/${s}</span><span class="remove-sub" onclick="removeSubreddit('${s}')">✕</span>`;
+    wrap.appendChild(d);
+  });
+}
+function addSubreddit() {
+  const inp = document.getElementById('subInput');
+  let name = inp.value.replace(/^r\//i,'').trim();
+  if (name && !activeSubreddits.has(name)) { activeSubreddits.add(name); renderSubTags(); updateFilterUI(); }
+  inp.value = '';
+}
+function removeSubreddit(name) { activeSubreddits.delete(name); renderSubTags(); updateFilterUI(); }
+document.getElementById('subInput').addEventListener('keydown', e => { if (e.key==='Enter') addSubreddit(); });
+
+/* ── FILTER PANEL ── */
+function toggleFilters() {
+  document.getElementById('filtersBody').classList.toggle('open');
+  document.getElementById('filtersChevron').classList.toggle('open');
+}
+document.getElementById('sectorChips').addEventListener('click', e => {
+  const chip = e.target.closest('.sector-chip');
+  if (!chip) return;
+  const s = chip.dataset.sector;
+  activeSectors.has(s) ? activeSectors.delete(s) : activeSectors.add(s);
+  chip.classList.toggle('active');
+  updateFilterUI();
+});
+document.getElementById('priceMin').addEventListener('input', updateFilterUI);
+document.getElementById('priceMax').addEventListener('input', updateFilterUI);
+function clearPriceFilter() { document.getElementById('priceMin').value=''; document.getElementById('priceMax').value=''; updateFilterUI(); }
+function toggleSfChip(chip) {
+  const sf = chip.dataset.sf;
+  if (sentimentFilters.has(sf)) { sentimentFilters.delete(sf); chip.className='sf-chip'; }
+  else { sentimentFilters.add(sf); chip.className=`sf-chip active-${sf.toLowerCase()}`; }
+  updateFilterUI(); applyFeedVisibility();
+}
+function updateFilterUI() {
+  const row = document.getElementById('activeFiltersRow');
+  row.innerHTML = '';
+  let count = 0;
+  activeSectors.forEach(s => { count++; row.appendChild(makeAfc(`Sector: ${s}`, ()=>removeSector(s))); });
+  const min = document.getElementById('priceMin').value;
+  const max = document.getElementById('priceMax').value;
+  if (min||max) { count++; const lbl=min&&max?`$${min}–$${max}`:min?`≥$${min}`:`≤$${max}`; row.appendChild(makeAfc(`Price: ${lbl}`, clearPriceFilter)); }
+  sentimentFilters.forEach(sf => { count++; row.appendChild(makeAfc(`Show: ${sf}`, ()=>{ sentimentFilters.delete(sf); document.querySelectorAll(`.sf-chip[data-sf="${sf}"]`).forEach(c=>c.className='sf-chip'); updateFilterUI(); applyFeedVisibility(); })); });
+  const badge = document.getElementById('filterCount');
+  badge.textContent = count;
+  badge.classList.toggle('visible', count>0);
+}
+function makeAfc(label, onRemove) {
+  const d = document.createElement('div'); d.className='afc';
+  d.innerHTML=`<span>${label}</span><span class="afc-remove">✕</span>`;
+  d.querySelector('.afc-remove').addEventListener('click', onRemove);
+  return d;
+}
+function removeSector(s) { activeSectors.delete(s); document.querySelectorAll(`.sector-chip[data-sector="${s}"]`).forEach(c=>c.classList.remove('active')); updateFilterUI(); }
+function applyFeedVisibility() {
+  document.querySelectorAll('.cycle[id^="cycle-"]').forEach(el => {
+    const num = parseInt(el.id.replace('cycle-',''));
+    const sent = cycleSentimentMap[num];
+    if (!sent) return;
+    el.classList.toggle('filtered-out', sentimentFilters.size>0 && !sentimentFilters.has(sent));
+  });
+}
+function buildFilterContext() {
+  const lines = [];
+  if (activeSectors.size>0) lines.push(`SECTOR FOCUS: Prioritise assets within: ${[...activeSectors].join(', ')}.`);
+  const min=document.getElementById('priceMin').value, max=document.getElementById('priceMax').value;
+  if (min||max) { const r=min&&max?`between $${min} and $${max}`:min?`above $${min}`:`below $${max}`; lines.push(`PRICE FILTER: Only discuss assets priced ${r}.`); }
+  return lines.length ? '\nFILTER CONSTRAINTS:\n'+lines.join('\n') : '';
+}
+
+/* ── STATUS / STEPS ── */
+const STEPS = ['step-news','step-reddit','step-insider','step-congress','step-output'];
+function setStatus(state) {
+  const dot=document.getElementById('statusDot'), txt=document.getElementById('statusText');
+  dot.className='pulse-dot';
+  txt.textContent = {running:'RUNNING',analyzing:'ANALYZING',idle:'IDLE',error:'ERROR',waiting:'WAITING'}[state]||state.toUpperCase();
+  if (state==='idle')  dot.classList.add('idle');
+  if (state==='error') dot.classList.add('error');
+}
+function setStep(id) {
+  STEPS.forEach(s => {
+    const el=document.getElementById(s); el.classList.remove('active','done');
+    if (s===id) el.classList.add('active');
+    else if (STEPS.indexOf(s)<STEPS.indexOf(id)) el.classList.add('done');
+  });
+}
+function clearSteps() { STEPS.forEach(s=>document.getElementById(s).classList.remove('active','done')); }
+
+/* ── COUNTDOWN ── */
+function startCountdown(secs) {
+  countdownTotal=secs; countdownLeft=secs; clearInterval(countdownTimer);
+  const bar=document.getElementById('countdownBar'), lbl=document.getElementById('countdownSecs');
+  countdownTimer=setInterval(()=>{ if(!running){clearInterval(countdownTimer);return;} countdownLeft--; lbl.textContent=countdownLeft+'s'; bar.style.width=((countdownTotal-countdownLeft)/countdownTotal*100)+'%'; if(countdownLeft<=0)clearInterval(countdownTimer); }, 1000);
+}
+
+/* ── CHART ── */
+const SENT_SCORE = { BULLISH:2, MIXED:0.8, NEUTRAL:0, BEARISH:-2 };
+function scoreOf(s) { return SENT_SCORE[s] ?? 0; }
+
+function updateChart() {
+  const svg=document.getElementById('sentimentChart'), empty=document.getElementById('chartEmpty');
+  if (chartData.length<1) return;
+  empty.style.display='none'; svg.style.display='block';
+  const W=900, H=155, PL=42, PR=10, PT=12, PB=20;
+  const n=chartData.length;
+  const iW=W-PL-PR;
+  const xOf=i=>PL+(n<2?iW/2:i*(iW/(n-1)));
+  const yOf=v=>PT+(1-(v+2)/4)*(H-PT-PB);
+
+  function path(key,color) {
+    const d=chartData.map((p,i)=>`${i===0?'M':'L'}${xOf(i).toFixed(1)},${yOf(p[key]).toFixed(1)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  function dots(key,color) {
+    return chartData.map((p,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(p[key]).toFixed(1)}" r="3.8" fill="${color}"/>`).join('');
+  }
+
+  const zy=yOf(0).toFixed(1);
+  const zeroLine=`<line x1="${PL}" y1="${zy}" x2="${W-PR}" y2="${zy}" stroke="#dde0e8" stroke-width="1" stroke-dasharray="4,3"/>`;
+  const yLbls=[
+    [2,'Bullish','#16a34a'],
+    [0,'Neutral','#6b7280'],
+    [-2,'Bearish','#dc2626']
+  ].map(([v,l,c])=>`<text x="2" y="${(yOf(v)+3.5).toFixed(1)}" font-size="8.5" fill="${c}" font-family="Space Mono,monospace">${l}</text>`).join('');
+  const xLbls=chartData.map((p,i)=>`<text x="${xOf(i).toFixed(1)}" y="${H-3}" font-size="7.5" fill="#6b7280" text-anchor="middle" font-family="Space Mono,monospace">#${p.cycle}</text>`).join('');
+
+  svg.innerHTML = zeroLine+yLbls+xLbls
+    +path('st','#16a34a')+path('mt','#0284c7')+path('lt','#ea580c')
+    +dots('st','#16a34a')+dots('mt','#0284c7')+dots('lt','#ea580c');
+}
+
+/* ── MAIN CYCLE ── */
+async function runCycle() {
+  if (!running) return;
+  const topic = document.getElementById('topicInput').value || 'S&P 500';
+  const depth = document.getElementById('depthSelect').value;
+  const subs  = [...activeSubreddits].slice(0,6).map(s=>`r/${s}`).join(', ');
+  cycleNum++;
+  const t0=Date.now();
+
+  setStatus('analyzing');
+  setStep('step-news');
+
+  const recentSummary = analysisHistory.slice(-2)
+    .map(h=>`Cycle ${h.num}: ST=${h.st} MT=${h.mt} LT=${h.lt} — ${h.headline}`).join('\n');
+  const filterContext = buildFilterContext();
+
+  const systemPrompt = `You are AXIOM, an elite multi-source AI market analyst running continuous multi-timeframe intelligence cycles.
+
+Each cycle you execute FOUR research streams via web search, then synthesise them:
+
+STREAM 1 — NEWS & PRICE ACTION
+Search for the latest prices, breaking news, analyst calls, options flow for the topic.
+Timeframe: SHORT-TERM (hours to days)
+
+STREAM 2 — REDDIT SENTIMENT
+Search these subreddits: ${subs}
+Find trending tickers, hot posts, top comment themes, meme stock mentions, fear/greed signals.
+Timeframe: SHORT-TERM (hours to days)
+
+STREAM 3 — INSIDER TRADES (openinsider.com)
+Search openinsider.com for recent SEC Form 4 filings on relevant tickers.
+Note: officer name + title, buy or sell, dollar value, date.
+Timeframe: MEDIUM-TERM (weeks to months)
+
+STREAM 4 — CONGRESSIONAL TRADES (STOCK Act disclosures)
+Search for the latest Senate/House trading disclosures for relevant tickers.
+Use sources like capitol trades, quiverquant congressional, or SEC disclosures.
+Note: member name, party, chamber, buy/sell, dollar range, date.
+Timeframe: LONG-TERM (months+)
+
+OUTPUT FORMAT — follow exactly, no prose outside these fields:
+HEADLINE: [punchy 1-sentence, max 12 words]
+
+ST_SENTIMENT: [BULLISH|BEARISH|NEUTRAL|MIXED]
+ST_BASIS: [1 sentence: what news + Reddit are signalling right now]
+
+MT_SENTIMENT: [BULLISH|BEARISH|NEUTRAL|MIXED]
+MT_BASIS: [1 sentence: what insiders are doing]
+
+LT_SENTIMENT: [BULLISH|BEARISH|NEUTRAL|MIXED]
+LT_BASIS: [1 sentence: what Congress is doing]
+
+ANALYSIS:
+[${depth==='brief'?'2-3':depth==='detailed'?'3-5':'5-6'} paragraphs weaving all four streams together. Be specific: name the subreddits buzzing, quote the insider name and dollar amount, name the congressman and trade. Think like a hedge fund PM who reads everything.]
+
+REDDIT_SIGNALS: [top 3 tickers/themes trending on Reddit, pipe-separated]
+INSIDER_SIGNALS: [top 2 filings: "FIRSTNAME LASTNAME (TITLE): BUY/SELL $Xk TICKER DATE", pipe-separated]
+CONGRESS_SIGNALS: [top 2 disclosures: "FIRSTNAME LASTNAME (PARTY/CHAMBER): BUY/SELL $X–$Xk TICKER DATE", pipe-separated]
+METRICS: [metric1] | [metric2] | [metric3] | [metric4]`;
+
+  const userPrompt = `CYCLE #${cycleNum} — ${new Date().toISOString()}
+FOCUS: ${topic}
+DEPTH: ${depth}
+SUBREDDITS TO SCAN: ${subs}${filterContext}
+${recentSummary ? `\nPREVIOUS CYCLES:\n${recentSummary}` : ''}
+
+Execute all four research streams for "${topic}" now and deliver the full report.`;
+
+  /* ── cycle card ── */
+  const feedEl=document.getElementById('feed');
+  const ee=feedEl.querySelector('.empty-state');
+  if (ee) feedEl.innerHTML='';
+
+  const cycleEl=document.createElement('div');
+  cycleEl.className='cycle'; cycleEl.id=`cycle-${cycleNum}`;
+  cycleEl.innerHTML=`
+    <div class="cycle-header" onclick="toggleCycle(${cycleNum})">
+      <span class="cycle-num">#${cycleNum}</span>
+      <span class="cycle-topic" id="headline-${cycleNum}">Researching ${topic}…</span>
+      <span class="src-badges">
+        <span class="src-badge src-reddit">Reddit</span>
+        <span class="src-badge src-insider">Insider</span>
+        <span class="src-badge src-congress">Congress</span>
+      </span>
+      <span class="cycle-time">${new Date().toLocaleTimeString()}</span>
+      <span class="sentiment-badge sentiment-neutral" id="badge-${cycleNum}">…</span>
+    </div>
+    <div class="cycle-body" id="body-${cycleNum}"><span class="typing-cursor"></span></div>
+  `;
+  feedEl.insertBefore(cycleEl, feedEl.firstChild);
+
+  try {
+    /* advance pipeline steps with small delays for UX feedback */
+    setTimeout(()=>setStep('step-reddit'),  800);
+    setTimeout(()=>setStep('step-insider'), 1600);
+    setTimeout(()=>setStep('step-congress'),2400);
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",
+        max_tokens:1500,
+        system:systemPrompt,
+        tools:[{type:"web_search_20250305",name:"web_search"}],
+        messages:[{role:"user",content:userPrompt}]
+      })
+    });
+
+    const data=await response.json();
+    if (data.error) throw new Error(data.error.message);
+
+    setStep('step-output');
+
+    const fullText=data.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
+
+    const g=(re,grp=1)=>{ const m=fullText.match(re); return m?m[grp].trim():''; };
+
+    const headline     = g(/HEADLINE:\s*(.+)/i)     || `Cycle ${cycleNum} complete`;
+    const stSent       = (g(/ST_SENTIMENT:\s*(BULLISH|BEARISH|NEUTRAL|MIXED)/i)||'NEUTRAL').toUpperCase();
+    const stBasis      = g(/ST_BASIS:\s*(.+)/i);
+    const mtSent       = (g(/MT_SENTIMENT:\s*(BULLISH|BEARISH|NEUTRAL|MIXED)/i)||'NEUTRAL').toUpperCase();
+    const mtBasis      = g(/MT_BASIS:\s*(.+)/i);
+    const ltSent       = (g(/LT_SENTIMENT:\s*(BULLISH|BEARISH|NEUTRAL|MIXED)/i)||'NEUTRAL').toUpperCase();
+    const ltBasis      = g(/LT_BASIS:\s*(.+)/i);
+    const analysisRaw  = g(/ANALYSIS:\s*([\s\S]+?)(?=REDDIT_SIGNALS:|INSIDER_SIGNALS:|CONGRESS_SIGNALS:|METRICS:|$)/i);
+    const redditSigs   = g(/REDDIT_SIGNALS:\s*(.+)/i).split('|').map(s=>s.trim()).filter(Boolean);
+    const insiderSigs  = g(/INSIDER_SIGNALS:\s*(.+)/i).split('|').map(s=>s.trim()).filter(Boolean);
+    const congressSigs = g(/CONGRESS_SIGNALS:\s*(.+)/i).split('|').map(s=>s.trim()).filter(Boolean);
+    const metrics      = g(/METRICS:\s*(.+)/i).split('|').map(s=>s.trim()).filter(Boolean);
+
+    /* composite overall (ST 40%, MT 35%, LT 25%) */
+    const composite = scoreOf(stSent)*.4 + scoreOf(mtSent)*.35 + scoreOf(ltSent)*.25;
+    const overallSent = composite>=1.1?'BULLISH':composite<=-1.1?'BEARISH':Math.abs(composite)>=0.25?'MIXED':'NEUTRAL';
+
+    document.getElementById(`headline-${cycleNum}`).textContent = headline;
+    const badge=document.getElementById(`badge-${cycleNum}`);
+    badge.textContent=overallSent;
+    badge.className=`sentiment-badge sentiment-${overallSent.toLowerCase()}`;
+
+    cycleSentimentMap[cycleNum]=overallSent;
+    if (sentimentFilters.size>0 && !sentimentFilters.has(overallSent)) cycleEl.classList.add('filtered-out');
+
+    /* stream analysis */
+    const bodyEl=document.getElementById(`body-${cycleNum}`);
+    bodyEl.innerHTML='';
+    let ci=0; const chars=analysisRaw.split('');
+    const stream=setInterval(()=>{
+      if (ci<chars.length){ bodyEl.textContent+=chars[ci]; ci+=Math.floor(Math.random()*3)+1; }
+      else {
+        bodyEl.textContent=analysisRaw;
+        clearInterval(stream);
+
+        /* signal cards */
+        const sentClass=s=>({BULLISH:'sc-up',BEARISH:'sc-down',NEUTRAL:'sc-flat',MIXED:'sc-mixed'}[s]||'sc-flat');
+
+        const makeCard=(icon,label,sent,basis,signals)=>{
+          const c=document.createElement('div'); c.className='signal-card';
+          c.innerHTML=`
+            <div class="sc-label">${icon} ${label}</div>
+            <div class="sc-val ${sentClass(sent)}">${sent}</div>
+            <div class="sc-sub">${basis||'—'}</div>
+            ${signals.length?`<div class="sc-sub" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${signals.map(s=>`▸ ${s}`).join('<br>')}</div>`:''}
+          `;
+          return c;
+        };
+
+        const sigRow=document.createElement('div'); sigRow.className='signal-row';
+        sigRow.appendChild(makeCard('📡','Short-Term  ·  Reddit & News',stSent,stBasis,redditSigs));
+        sigRow.appendChild(makeCard('📈','Medium-Term  ·  Open Insider',mtSent,mtBasis,insiderSigs));
+        sigRow.appendChild(makeCard('🏛','Long-Term  ·  Congress',ltSent,ltBasis,congressSigs));
+        cycleEl.appendChild(sigRow);
+
+        if (metrics.length) {
+          const mDiv=document.createElement('div'); mDiv.className='inline-metrics';
+          metrics.forEach(m=>{ const c=document.createElement('div'); c.className='metric-chip'; c.innerHTML=m; mDiv.appendChild(c); });
+          cycleEl.appendChild(mDiv);
+        }
+      }
+    }, 11);
+
+    /* chart */
+    chartData.push({ cycle:cycleNum, st:scoreOf(stSent), mt:scoreOf(mtSent), lt:scoreOf(ltSent) });
+    if (chartData.length>20) chartData.shift();
+    updateChart();
+
+    /* stats */
+    const elapsed=Date.now()-t0;
+    stats.count++; stats.totalMs+=elapsed;
+    if (overallSent==='BULLISH') stats.bullish++;
+    if (overallSent==='BEARISH') stats.bearish++;
+    analysisHistory.push({num:cycleNum,st:stSent,mt:mtSent,lt:ltSent,headline});
+    if (analysisHistory.length>10) analysisHistory.shift();
+
+    document.getElementById('statCycles').textContent  = stats.count;
+    document.getElementById('statBullish').textContent = stats.bullish;
+    document.getElementById('statBearish').textContent = stats.bearish;
+    document.getElementById('statAvgTime').textContent = Math.round(stats.totalMs/stats.count);
+    document.getElementById('cycleCount').textContent  = `${cycleNum} cycles`;
+    document.getElementById('latencyTag').textContent  = elapsed+'ms';
+    document.getElementById('footerInfo').textContent  = `Last cycle: ${new Date().toLocaleTimeString()} — ${elapsed}ms`;
+
+  } catch(err) {
+    document.getElementById(`body-${cycleNum}`).innerHTML=`<div class="error-msg">⚠ ${err.message}</div>`;
+    setStatus('error');
+  }
+
+  clearSteps();
+  if (running) {
+    const iv=parseInt(document.getElementById('intervalSelect').value);
+    setStatus('waiting'); startCountdown(iv);
+    cycleTimer=setTimeout(runCycle,iv*1000);
+  }
+}
+
+/* ── START / STOP ── */
+function startAgent() {
+  if (running) return;
+  running=true; cycleNum=0;
+  stats={bullish:0,bearish:0,totalMs:0,count:0};
+  analysisHistory=[]; cycleSentimentMap={}; chartData=[];
+  updateChart();
+  document.getElementById('startBtn').style.display='none';
+  document.getElementById('stopBtn').style.display='inline-block';
+  document.getElementById('topicInput').disabled=true;
+  setStatus('running'); runCycle();
+}
+function stopAgent() {
+  running=false; clearTimeout(cycleTimer); clearInterval(countdownTimer); clearSteps(); setStatus('idle');
+  document.getElementById('startBtn').style.display='inline-block';
+  document.getElementById('stopBtn').style.display='none';
+  document.getElementById('topicInput').disabled=false;
+  document.getElementById('countdownSecs').textContent='—';
+  document.getElementById('countdownBar').style.width='0%';
+  document.getElementById('footerInfo').textContent='Stopped at '+new Date().toLocaleTimeString();
+}
+
+/* ── MISC ── */
+function setTopic(el) { document.getElementById('topicInput').value=el.textContent.trim(); }
+
+function toggleCycle(num) {
+  const body=document.getElementById(`body-${num}`);
+  if (!body) return;
+  const hidden=body.style.display==='none';
+  let el=body;
+  while(el) {
+    const isCycleChild=el.classList&&(el.classList.contains('cycle-body')||el.classList.contains('signal-row')||el.classList.contains('inline-metrics'));
+    if(isCycleChild){
+      if(hidden) el.style.display=el.classList.contains('cycle-body')?'block':'flex';
+      else el.style.display='none';
+    }
+    el=el.nextElementSibling;
+  }
+}
+</script>
+</body>
+</html>
