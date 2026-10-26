@@ -4,3 +4,4 @@ results/
 bot_state.json
 __pycache__/
 *.log
+_test_state.json
