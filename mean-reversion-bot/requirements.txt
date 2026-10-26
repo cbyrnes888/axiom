@@ -1,0 +1,6 @@
+alpaca-py>=0.30
+pandas>=2.0
+numpy>=1.24
+python-dotenv>=1.0
+# Optional: only needed if you set data_source = "yahoo" in config.toml
+yfinance>=0.2

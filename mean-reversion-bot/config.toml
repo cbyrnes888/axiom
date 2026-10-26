@@ -1,0 +1,43 @@
+# ============================================================
+#  Mean-reversion bot settings — edit these, no coding needed.
+#  Lines starting with # are notes and are ignored.
+# ============================================================
+
+# Stocks to scan (live trading and backtests both use this list)
+symbols = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "XOM", "KO", "SPY"]
+
+[strategy]
+timeframe   = "1Day"   # bar size: "5Min", "15Min", "30Min", "1Hour", "4Hour", "1Day"
+ma_type     = "SMA"    # "SMA" or "EMA"
+ma_length   = 20       # how many bars the moving average covers
+entry_std   = 2.0      # BUY when price reaches this many std devs BELOW the average
+exit_std    = 1.0      # SELL when the close gets back to average + this many std devs
+                       #   1.0 = upper 1-sigma band, 0 = the average itself,
+                       #  -1.0 = back above the LOWER 1-sigma band (quickest exit)
+entry_mode  = "touch"  # "touch" = the bar's low touches the band, "close" = bar closes below it
+
+# Optional safety rules (set to 0 to turn off)
+trend_filter_length = 0     # e.g. 200 = only buy when price is above its 200-bar average
+stop_loss_pct       = 0     # e.g. 5 = sell if price falls 5% below your buy price
+max_bars_held       = 0     # e.g. 20 = give up and sell after 20 bars
+
+[live]
+position_size_pct = 10      # % of account equity to put into each trade
+max_positions     = 5       # never hold more than this many stocks at once
+data_feed         = "iex"   # free Alpaca accounts must use "iex" for live data
+dry_run           = true    # true = only PRINT what it would do. Set false to place paper orders.
+
+[backtest]
+data_source   = "alpaca"     # "alpaca" (needs keys in .env) or "yahoo" (no keys; short intraday history)
+data_feed     = "sip"        # "sip" = full market data (free for history), or "iex"
+start         = "2018-01-01"
+end           = ""           # empty = up to today
+slippage_pct  = 0.05         # cost per side to simulate imperfect fills (Alpaca has no commissions)
+out_of_sample_pct = 30       # last 30% of the data is held back to check the results aren't a fluke
+
+# The backtester tries EVERY combination of these lists:
+[backtest.grid]
+timeframe = ["1Day", "1Hour"]
+ma_length = [10, 20, 50]
+entry_std = [1.5, 2.0, 2.5, 3.0]
+exit_std  = [-1.0, 0.0, 1.0]

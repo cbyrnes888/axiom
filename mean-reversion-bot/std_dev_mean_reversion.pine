@@ -1,0 +1,66 @@
+//@version=6
+// Std-Dev Mean Reversion — same rules as the Python bot (live_trader.py / backtest.py).
+// BUY  when price reaches MA - (Entry std devs) * stdev
+// SELL when the close gets back to MA + (Exit std devs) * stdev
+// Orders fill at the next bar's open (TradingView default), same as the Python backtester.
+strategy("Std-Dev Mean Reversion", shorttitle = "SD Revert", overlay = true,
+     initial_capital = 10000, default_qty_type = strategy.percent_of_equity, default_qty_value = 100,
+     commission_type = strategy.commission.percent, commission_value = 0.0, slippage = 1, pyramiding = 0)
+
+// ───────────── Inputs (all adjustable in the ⚙ Settings panel) ─────────────
+grpBands   = "Bands"
+maType     = input.string("SMA", "Moving average type", options = ["SMA", "EMA"], group = grpBands)
+length     = input.int(20, "MA length (bars)", minval = 2, group = grpBands)
+entryStd   = input.float(2.0, "Entry: std devs BELOW the MA", minval = 0.1, step = 0.1, group = grpBands)
+exitStd    = input.float(1.0, "Exit: std devs from MA (+ above / − below)", step = 0.1, group = grpBands,
+     tooltip = "1 = upper 1σ band, 0 = the MA itself, -1 = back above the lower 1σ band")
+entryMode  = input.string("Touch (low)", "Entry trigger", options = ["Touch (low)", "Close below"], group = grpBands)
+
+grpRisk    = "Risk & filters"
+useTrend   = input.bool(false, "Only buy above a long-term MA (trend filter)", group = grpRisk)
+trendLen   = input.int(200, "Trend MA length", minval = 10, group = grpRisk)
+useStop    = input.bool(false, "Use stop loss", group = grpRisk)
+stopPct    = input.float(5.0, "Stop loss %", minval = 0.1, step = 0.5, group = grpRisk)
+useMaxBars = input.bool(false, "Exit after max bars held", group = grpRisk)
+maxBars    = input.int(20, "Max bars held", minval = 1, group = grpRisk)
+
+grpDate    = "Backtest window"
+startTime  = input.time(timestamp("2018-01-01T00:00:00"), "Start", group = grpDate)
+endTime    = input.time(timestamp("2099-01-01T00:00:00"), "End", group = grpDate)
+inWindow   = time >= startTime and time <= endTime
+
+// ───────────── Bands ─────────────
+basis    = maType == "EMA" ? ta.ema(close, length) : ta.sma(close, length)
+dev      = ta.stdev(close, length)
+lower    = basis - entryStd * dev
+exitBand = basis + exitStd * dev
+trendMa  = ta.sma(close, trendLen)
+
+// ───────────── Rules ─────────────
+touched    = entryMode == "Touch (low)" ? low <= lower : close <= lower
+trendOk    = not useTrend or close > trendMa
+longSignal = touched and trendOk and inWindow and strategy.position_size == 0
+
+if longSignal
+    strategy.entry("Long", strategy.long)
+
+if strategy.position_size > 0
+    if useStop
+        strategy.exit("Stop", "Long", stop = strategy.position_avg_price * (1 - stopPct / 100))
+    barsHeld = bar_index - strategy.opentrades.entry_bar_index(0)
+    if close >= exitBand
+        strategy.close("Long", comment = "Exit band")
+    else if useMaxBars and barsHeld >= maxBars
+        strategy.close("Long", comment = "Max bars")
+
+// Close anything still open when the backtest window ends
+if not inWindow and strategy.position_size > 0
+    strategy.close("Long", comment = "Window end")
+
+// ───────────── Chart ─────────────
+pBasis = plot(basis, "Moving average", color = color.new(color.orange, 0), linewidth = 2)
+pLower = plot(lower, "Entry band", color = color.new(color.green, 0))
+pExit  = plot(exitBand, "Exit band", color = color.new(color.red, 0))
+fill(pLower, pBasis, color = color.new(color.green, 92))
+plot(useTrend ? trendMa : na, "Trend MA", color = color.new(color.gray, 0), linewidth = 2)
+plotshape(longSignal, "Buy signal", shape.triangleup, location.belowbar, color.green, size = size.small)
